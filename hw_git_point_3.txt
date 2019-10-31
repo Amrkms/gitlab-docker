@@ -1,0 +1,104 @@
+# HW 3 point 3
+
+[andr@vm3 gitlab]$ sestatus
+SELinux status:                 disabled
+[andr@vm3 gitlab]$ sudo systemctl status firewalld
+● firewalld.service - firewalld - dynamic firewall daemon
+   Loaded: loaded (/usr/lib/systemd/system/firewalld.service; disabled; vendor preset: enabled)
+   Active: inactive (dead)
+     Docs: man:firewalld(1)
+[andr@vm3 gitlab]$ 
+
+
+
+[andr@vm3 gitlab]$ docker pull gitlab/gitlab-ce
+Using default tag: latest
+latest: Pulling from gitlab/gitlab-ce
+a1298f4ce990: Already exists 
+04a3282d9c4b: Already exists 
+9b0d3db6dc03: Already exists 
+8269c605f3f1: Already exists 
+df6bfc3e6fcd: Pull complete 
+0956d1805959: Pull complete 
+e0790b6fd5b4: Pull complete 
+0d58e2b27a55: Pull complete 
+bf269e6e68ad: Pull complete 
+7ea7213bcee5: Pull complete 
+Digest: sha256:efbedd5b3e59ee9dd3eab67210b361e892e0b0037e93346aecfdb000b2238d8e
+Status: Downloaded newer image for gitlab/gitlab-ce:latest
+docker.io/gitlab/gitlab-ce:latest
+
+[andr@vm3 gitlab]$ docker images
+REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
+gitlab/gitlab-ce    latest              6d75d1ad2f82        3 days ago          1.8GB
+
+[andr@vm3 gitlab]$ cat run_gitlab.sh
+docker run --detach \
+  --hostname gitlab.example.com \
+  --publish 443:443 \
+  --publish 8929:80 \
+  --publish 2289:22 \
+  --name gitlab \
+  --restart always \
+  --volume /srv/gitlab/config:/etc/gitlab \
+  --volume /srv/gitlab/logs:/var/log/gitlab \
+  --volume /srv/gitlab/data:/var/opt/gitlab \
+ gitlab/gitlab-ce:latest
+[andr@vm3 gitlab]$ 
+
+[andr@vm3 gitlab]$ ./run_gitlab.sh
+932af6d93b0f0378ea728127048621712fcdcfabed608b15904b7dd13b9046e7
+[andr@vm3 gitlab]$ docker ps
+CONTAINER ID        IMAGE                     COMMAND             CREATED             STATUS                            PORTS                                                              NAMES
+932af6d93b0f        gitlab/gitlab-ce:latest   "/assets/wrapper"   18 seconds ago      Up 9 seconds (health: starting)   0.0.0.0:443->443/tcp, 0.0.0.0:2289->22/tcp, 0.0.0.0:8929->80/tcp   gitlab
+[andr@vm3 gitlab]$ 
+
+[andr@vm3 gitlab]$ docker exec -it 932af /bin/bash
+root@gitlab:/# curl localhost:80
+curl: (7) Failed to connect to localhost port 80: Connection refused
+root@gitlab:/# exit
+
+[andr@vm3 gitlab]$ docker stop 932af
+932af
+[andr@vm3 gitlab]$ 
+
+2. Try start with docker-compose
+
+[andr@vm3 gitlab]$ cat docker-compose.yml
+web:
+  image: 'gitlab/gitlab-ce:latest'
+  restart: always
+  hostname: 'gitlab.example.com'
+  environment:
+    GITLAB_OMNIBUS_CONFIG: |
+      external_url 'https://gitlab.example.com:8929'
+      gitlab_rails['gitlab_shell_ssh_port'] = 2224  
+  ports:
+    - '8929:80'
+    - '443:443'
+    - '2224:22'
+  volumes:
+    - '/srv/gitlab/config:/etc/gitlab'
+    - '/srv/gitlab/logs:/var/log/gitlab'
+    - '/srv/gitlab/data:/var/opt/gitlab'
+[andr@vm3 gitlab]$ 
+
+
+[andr@vm3 gitlab]$ ./run_by_compose.sh
+Creating gitlab_web_1 ... done
+
+[andr@vm3 gitlab]$ docker ps
+CONTAINER ID        IMAGE                     COMMAND             CREATED             STATUS                            PORTS                                                              NAMES
+b37e11076a73        gitlab/gitlab-ce:latest   "/assets/wrapper"   3 minutes ago       Up 3 minutes (health: starting)   0.0.0.0:443->443/tcp, 0.0.0.0:2224->22/tcp, 0.0.0.0:8929->80/tcp   gitlab_web_1
+[andr@vm3 gitlab]$ 
+
+[andr@vm3 gitlab]$ docker exec -it b37e11 /bin/bash
+root@gitlab:/# curl localhost:80
+curl: (7) Failed to connect to localhost port 80: Connection refused
+root@gitlab:/# 
+
+
+
+
+
+
